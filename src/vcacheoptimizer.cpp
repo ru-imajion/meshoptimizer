@@ -15,8 +15,8 @@ const size_t kValenceMax = 8;
 
 struct VertexScoreTable
 {
-	float cache[1 + kCacheSizeMax];
-	float live[1 + kValenceMax];
+	meshopt_float cache[1 + kCacheSizeMax];
+	meshopt_float live[1 + kValenceMax];
 };
 
 // Tuned to minimize the ACMR of a GPU that has a cache profile similar to NVidia and AMD
@@ -141,7 +141,7 @@ static unsigned int getNextVertexNeighbor(const unsigned int* next_candidates_be
 	return best_candidate;
 }
 
-static float vertexScore(const VertexScoreTable* table, int cache_position, unsigned int live_triangles)
+static meshopt_float vertexScore(const VertexScoreTable* table, int cache_position, unsigned int live_triangles)
 {
 	assert(cache_position >= -1 && cache_position < int(kCacheSizeMax));
 
@@ -204,13 +204,13 @@ void meshopt_optimizeVertexCacheTable(unsigned int* destination, const unsigned 
 	memset(emitted_flags, 0, face_count);
 
 	// compute initial vertex scores
-	float* vertex_scores = allocator.allocate<float>(vertex_count);
+	meshopt_float* vertex_scores = allocator.allocate<meshopt_float>(vertex_count);
 
 	for (size_t i = 0; i < vertex_count; ++i)
 		vertex_scores[i] = vertexScore(table, -1, live_triangles[i]);
 
 	// compute triangle scores
-	float* triangle_scores = allocator.allocate<float>(face_count);
+	meshopt_float* triangle_scores = allocator.allocate<meshopt_float>(face_count);
 
 	for (size_t i = 0; i < face_count; ++i)
 	{
@@ -296,7 +296,7 @@ void meshopt_optimizeVertexCacheTable(unsigned int* destination, const unsigned 
 		}
 
 		unsigned int best_triangle = ~0u;
-		float best_score = 0;
+		meshopt_float best_score = 0;
 
 		// update cache positions, vertex scores and triangle scores, and find next best triangle
 		for (size_t i = 0; i < cache_write; ++i)
@@ -310,8 +310,8 @@ void meshopt_optimizeVertexCacheTable(unsigned int* destination, const unsigned 
 			int cache_position = i >= cache_size ? -1 : int(i);
 
 			// update vertex score
-			float score = vertexScore(table, cache_position, live_triangles[index]);
-			float score_diff = score - vertex_scores[index];
+			meshopt_float score = vertexScore(table, cache_position, live_triangles[index]);
+			meshopt_float score_diff = score - vertex_scores[index];
 
 			vertex_scores[index] = score;
 
@@ -324,7 +324,7 @@ void meshopt_optimizeVertexCacheTable(unsigned int* destination, const unsigned 
 				unsigned int tri = *it;
 				assert(!emitted_flags[tri]);
 
-				float tri_score = triangle_scores[tri] + score_diff;
+				meshopt_float tri_score = triangle_scores[tri] + score_diff;
 				assert(tri_score > 0);
 
 				best_triangle = best_score < tri_score ? tri : best_triangle;

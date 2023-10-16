@@ -16,8 +16,8 @@ struct Bounds
 
 	Bounds()
 	{
-		min.f[0] = min.f[1] = min.f[2] = min.f[3] = +FLT_MAX;
-		max.f[0] = max.f[1] = max.f[2] = max.f[3] = -FLT_MAX;
+		min.f[0] = min.f[1] = min.f[2] = min.f[3] = +GP_FLT_MAX;
+		max.f[0] = max.f[1] = max.f[2] = max.f[3] = -GP_FLT_MAX;
 	}
 
 	bool isValid() const
@@ -59,10 +59,10 @@ static void updateAttributeBounds(const Mesh& mesh, cgltf_attribute_type type, B
 				{
 					const Attr& a = s.data[k];
 
-					pad.f[0] = std::max(pad.f[0], fabsf(a.f[0]));
-					pad.f[1] = std::max(pad.f[1], fabsf(a.f[1]));
-					pad.f[2] = std::max(pad.f[2], fabsf(a.f[2]));
-					pad.f[3] = std::max(pad.f[3], fabsf(a.f[3]));
+					pad.f[0] = std::max(pad.f[0], gp_fabs(a.f[0]));
+					pad.f[1] = std::max(pad.f[1], gp_fabs(a.f[1]));
+					pad.f[2] = std::max(pad.f[2], gp_fabs(a.f[2]));
+					pad.f[3] = std::max(pad.f[3], gp_fabs(a.f[3]));
 				}
 			}
 		}
@@ -175,13 +175,13 @@ void prepareQuantizationTexture(cgltf_data* data, std::vector<QuantizationTextur
 	}
 }
 
-void getPositionBounds(float min[3], float max[3], const Stream& stream, const QuantizationPosition& qp, const Settings& settings)
+void getPositionBounds(cgltf_float min[3], cgltf_float max[3], const Stream& stream, const QuantizationPosition& qp, const Settings& settings)
 {
 	assert(stream.type == cgltf_attribute_type_position);
 	assert(stream.data.size() > 0);
 
-	min[0] = min[1] = min[2] = FLT_MAX;
-	max[0] = max[1] = max[2] = -FLT_MAX;
+	min[0] = min[1] = min[2] = GP_FLT_MAX;
+	max[0] = max[1] = max[2] = -GP_FLT_MAX;
 
 	for (size_t i = 0; i < stream.data.size(); ++i)
 	{
@@ -206,19 +206,19 @@ void getPositionBounds(float min[3], float max[3], const Stream& stream, const Q
 		}
 		else
 		{
-			float pos_rscale = qp.scale == 0.f ? 0.f : 1.f / qp.scale * (stream.target > 0 && qp.normalized ? 32767.f / 65535.f : 1.f);
+			cgltf_float pos_rscale = qp.scale == 0.f ? 0.f : 1.f / qp.scale * (stream.target > 0 && qp.normalized ? 32767.f / 65535.f : 1.f);
 
 			for (int k = 0; k < 3; ++k)
 			{
 				if (stream.target == 0)
 				{
-					min[k] = float(meshopt_quantizeUnorm((min[k] - qp.offset[k]) * pos_rscale, qp.bits));
-					max[k] = float(meshopt_quantizeUnorm((max[k] - qp.offset[k]) * pos_rscale, qp.bits));
+					min[k] = cgltf_float(meshopt_quantizeUnorm((min[k] - qp.offset[k]) * pos_rscale, qp.bits));
+					max[k] = cgltf_float(meshopt_quantizeUnorm((max[k] - qp.offset[k]) * pos_rscale, qp.bits));
 				}
 				else
 				{
-					min[k] = (min[k] >= 0.f ? 1.f : -1.f) * float(meshopt_quantizeUnorm(fabsf(min[k]) * pos_rscale, qp.bits));
-					max[k] = (max[k] >= 0.f ? 1.f : -1.f) * float(meshopt_quantizeUnorm(fabsf(max[k]) * pos_rscale, qp.bits));
+					min[k] = (min[k] >= 0.f ? 1.f : -1.f) * cgltf_float(meshopt_quantizeUnorm(gp_fabs(min[k]) * pos_rscale, qp.bits));
+					max[k] = (max[k] >= 0.f ? 1.f : -1.f) * cgltf_float(meshopt_quantizeUnorm(gp_fabs(max[k]) * pos_rscale, qp.bits));
 				}
 			}
 		}
@@ -243,16 +243,16 @@ static void renormalizeWeights(uint8_t (&w)[4])
 	w[max] += uint8_t(255 - sum);
 }
 
-static void encodeOct(int& fu, int& fv, float nx, float ny, float nz, int bits)
+static void encodeOct(int& fu, int& fv, cgltf_float nx, cgltf_float ny, cgltf_float nz, int bits)
 {
-	float nl = fabsf(nx) + fabsf(ny) + fabsf(nz);
-	float ns = nl == 0.f ? 0.f : 1.f / nl;
+	cgltf_float nl = gp_fabs(nx) + gp_fabs(ny) + gp_fabs(nz);
+	cgltf_float ns = nl == 0.f ? 0.f : 1.f / nl;
 
 	nx *= ns;
 	ny *= ns;
 
-	float u = (nz >= 0.f) ? nx : (1 - fabsf(ny)) * (nx >= 0.f ? 1.f : -1.f);
-	float v = (nz >= 0.f) ? ny : (1 - fabsf(nx)) * (ny >= 0.f ? 1.f : -1.f);
+	cgltf_float u = (nz >= 0.f) ? nx : (1 - gp_fabs(ny)) * (nx >= 0.f ? 1.f : -1.f);
+	cgltf_float v = (nz >= 0.f) ? ny : (1 - gp_fabs(nx)) * (ny >= 0.f ? 1.f : -1.f);
 
 	fu = meshopt_quantizeSnorm(u, bits);
 	fv = meshopt_quantizeSnorm(v, bits);
@@ -260,16 +260,16 @@ static void encodeOct(int& fu, int& fv, float nx, float ny, float nz, int bits)
 
 static void encodeQuat(int16_t v[4], const Attr& a, int bits)
 {
-	const float scaler = sqrtf(2.f);
+	const cgltf_float scaler = gp_sqrt(2.f);
 
 	// establish maximum quaternion component
 	int qc = 0;
-	qc = fabsf(a.f[1]) > fabsf(a.f[qc]) ? 1 : qc;
-	qc = fabsf(a.f[2]) > fabsf(a.f[qc]) ? 2 : qc;
-	qc = fabsf(a.f[3]) > fabsf(a.f[qc]) ? 3 : qc;
+	qc = gp_fabs(a.f[1]) > gp_fabs(a.f[qc]) ? 1 : qc;
+	qc = gp_fabs(a.f[2]) > gp_fabs(a.f[qc]) ? 2 : qc;
+	qc = gp_fabs(a.f[3]) > gp_fabs(a.f[qc]) ? 3 : qc;
 
 	// we use double-cover properties to discard the sign
-	float sign = a.f[qc] < 0.f ? -1.f : 1.f;
+	cgltf_float sign = a.f[qc] < 0.f ? -1.f : 1.f;
 
 	// note: we always encode a cyclical swizzle to be able to recover the order via rotation
 	v[0] = int16_t(meshopt_quantizeSnorm(a.f[(qc + 1) & 3] * scaler * sign, bits));
@@ -303,7 +303,7 @@ static void encodeExpShared(uint32_t v[3], const Attr& a, int bits)
 	v[2] = (mz & mmask) | (unsigned(exp) << 24);
 }
 
-static uint32_t encodeExpOne(float v, int bits, int min_exp = -100)
+static uint32_t encodeExpOne(cgltf_float v, int bits, int min_exp = -100)
 {
 	// extract exponent
 	int e;
@@ -376,14 +376,22 @@ static StreamFormat writeVertexStreamRaw(std::string& bin, const Stream& stream,
 	{
 		const Attr& a = stream.data[i];
 
-		bin.append(reinterpret_cast<const char*>(a.f), sizeof(float) * components);
+#ifdef CGLTF_DOUBLE_PRECISION
+		for (size_t j = 0; j < components; ++j)
+		{
+			cgltf_float32 v[1] = {cgltf_float32(a.f[j])};
+			bin.append(reinterpret_cast<const char*>(v), sizeof(v));
+		}
+#else
+		bin.append(reinterpret_cast<const char*>(a.f), sizeof(cgltf_float) * components);
+#endif
 	}
 
-	StreamFormat format = {type, cgltf_component_type_r_32f, false, sizeof(float) * components};
+	StreamFormat format = {type, cgltf_component_type_r_32f, false, sizeof(cgltf_float32) * components};
 	return format;
 }
 
-static int quantizeColor(float v, int bytebits, int bits)
+static int quantizeColor(cgltf_float v, int bytebits, int bits)
 {
 	int result = meshopt_quantizeUnorm(v, bytebits);
 
@@ -424,10 +432,10 @@ StreamFormat writeVertexStream(std::string& bin, const Stream& stream, const Qua
 					}
 					else
 					{
-						float v[3] = {
-						    meshopt_quantizeFloat(a.f[0], qp.bits),
-						    meshopt_quantizeFloat(a.f[1], qp.bits),
-						    meshopt_quantizeFloat(a.f[2], qp.bits)};
+						cgltf_float32 v[3] = {
+						    cgltf_float32(meshopt_quantizeFloat(a.f[0], qp.bits)),
+						    cgltf_float32(meshopt_quantizeFloat(a.f[1], qp.bits)),
+						    cgltf_float32(meshopt_quantizeFloat(a.f[2], qp.bits))};
 						bin.append(reinterpret_cast<const char*>(v), sizeof(v));
 					}
 				}
@@ -439,7 +447,7 @@ StreamFormat writeVertexStream(std::string& bin, const Stream& stream, const Qua
 
 		if (stream.target == 0)
 		{
-			float pos_rscale = qp.scale == 0.f ? 0.f : 1.f / qp.scale;
+			cgltf_float pos_rscale = qp.scale == 0.f ? 0.f : 1.f / qp.scale;
 
 			for (size_t i = 0; i < stream.data.size(); ++i)
 			{
@@ -458,7 +466,7 @@ StreamFormat writeVertexStream(std::string& bin, const Stream& stream, const Qua
 		}
 		else
 		{
-			float pos_rscale = qp.scale == 0.f ? 0.f : 1.f / qp.scale * (qp.normalized ? 32767.f / 65535.f : 1.f);
+			cgltf_float pos_rscale = qp.scale == 0.f ? 0.f : 1.f / qp.scale * (qp.normalized ? 32767.f / 65535.f : 1.f);
 
 			int maxv = 0;
 
@@ -466,9 +474,9 @@ StreamFormat writeVertexStream(std::string& bin, const Stream& stream, const Qua
 			{
 				const Attr& a = stream.data[i];
 
-				maxv = std::max(maxv, meshopt_quantizeUnorm(fabsf(a.f[0]) * pos_rscale, qp.bits));
-				maxv = std::max(maxv, meshopt_quantizeUnorm(fabsf(a.f[1]) * pos_rscale, qp.bits));
-				maxv = std::max(maxv, meshopt_quantizeUnorm(fabsf(a.f[2]) * pos_rscale, qp.bits));
+				maxv = std::max(maxv, meshopt_quantizeUnorm(gp_fabs(a.f[0]) * pos_rscale, qp.bits));
+				maxv = std::max(maxv, meshopt_quantizeUnorm(gp_fabs(a.f[1]) * pos_rscale, qp.bits));
+				maxv = std::max(maxv, meshopt_quantizeUnorm(gp_fabs(a.f[2]) * pos_rscale, qp.bits));
 			}
 
 			if (maxv <= 127 && !qp.normalized)
@@ -478,9 +486,9 @@ StreamFormat writeVertexStream(std::string& bin, const Stream& stream, const Qua
 					const Attr& a = stream.data[i];
 
 					int8_t v[4] = {
-					    int8_t((a.f[0] >= 0.f ? 1 : -1) * meshopt_quantizeUnorm(fabsf(a.f[0]) * pos_rscale, qp.bits)),
-					    int8_t((a.f[1] >= 0.f ? 1 : -1) * meshopt_quantizeUnorm(fabsf(a.f[1]) * pos_rscale, qp.bits)),
-					    int8_t((a.f[2] >= 0.f ? 1 : -1) * meshopt_quantizeUnorm(fabsf(a.f[2]) * pos_rscale, qp.bits)),
+					    int8_t((a.f[0] >= 0.f ? 1 : -1) * meshopt_quantizeUnorm(gp_fabs(a.f[0]) * pos_rscale, qp.bits)),
+					    int8_t((a.f[1] >= 0.f ? 1 : -1) * meshopt_quantizeUnorm(gp_fabs(a.f[1]) * pos_rscale, qp.bits)),
+					    int8_t((a.f[2] >= 0.f ? 1 : -1) * meshopt_quantizeUnorm(gp_fabs(a.f[2]) * pos_rscale, qp.bits)),
 					    0};
 					bin.append(reinterpret_cast<const char*>(v), sizeof(v));
 				}
@@ -495,9 +503,9 @@ StreamFormat writeVertexStream(std::string& bin, const Stream& stream, const Qua
 					const Attr& a = stream.data[i];
 
 					int16_t v[4] = {
-					    int16_t((a.f[0] >= 0.f ? 1 : -1) * meshopt_quantizeUnorm(fabsf(a.f[0]) * pos_rscale, qp.bits)),
-					    int16_t((a.f[1] >= 0.f ? 1 : -1) * meshopt_quantizeUnorm(fabsf(a.f[1]) * pos_rscale, qp.bits)),
-					    int16_t((a.f[2] >= 0.f ? 1 : -1) * meshopt_quantizeUnorm(fabsf(a.f[2]) * pos_rscale, qp.bits)),
+					    int16_t((a.f[0] >= 0.f ? 1 : -1) * meshopt_quantizeUnorm(gp_fabs(a.f[0]) * pos_rscale, qp.bits)),
+					    int16_t((a.f[1] >= 0.f ? 1 : -1) * meshopt_quantizeUnorm(gp_fabs(a.f[1]) * pos_rscale, qp.bits)),
+					    int16_t((a.f[2] >= 0.f ? 1 : -1) * meshopt_quantizeUnorm(gp_fabs(a.f[2]) * pos_rscale, qp.bits)),
 					    0};
 					bin.append(reinterpret_cast<const char*>(v), sizeof(v));
 				}
@@ -540,9 +548,9 @@ StreamFormat writeVertexStream(std::string& bin, const Stream& stream, const Qua
 					}
 					else
 					{
-						float v[2] = {
-						    meshopt_quantizeFloat(a.f[0], qt.bits),
-						    meshopt_quantizeFloat(a.f[1], qt.bits)};
+						cgltf_float32 v[2] = {
+						    cgltf_float32(meshopt_quantizeFloat(a.f[0], qt.bits)),
+						    cgltf_float32(meshopt_quantizeFloat(a.f[1], qt.bits))};
 						bin.append(reinterpret_cast<const char*>(v), sizeof(v));
 					}
 				}
@@ -553,7 +561,7 @@ StreamFormat writeVertexStream(std::string& bin, const Stream& stream, const Qua
 		}
 		else
 		{
-			float uv_rscale[2] = {
+			cgltf_float uv_rscale[2] = {
 			    qt.scale[0] == 0.f ? 0.f : 1.f / qt.scale[0],
 			    qt.scale[1] == 0.f ? 0.f : 1.f / qt.scale[1],
 			};
@@ -587,7 +595,7 @@ StreamFormat writeVertexStream(std::string& bin, const Stream& stream, const Qua
 		{
 			const Attr& a = stream.data[i];
 
-			float nx = a.f[0], ny = a.f[1], nz = a.f[2];
+			cgltf_float nx = a.f[0], ny = a.f[1], nz = a.f[2];
 
 			if (bits > 8)
 			{
@@ -664,7 +672,7 @@ StreamFormat writeVertexStream(std::string& bin, const Stream& stream, const Qua
 		{
 			const Attr& a = stream.data[i];
 
-			float nx = a.f[0], ny = a.f[1], nz = a.f[2], nw = a.f[3];
+			cgltf_float nx = a.f[0], ny = a.f[1], nz = a.f[2], nw = a.f[3];
 
 			int8_t v[4];
 
@@ -739,8 +747,8 @@ StreamFormat writeVertexStream(std::string& bin, const Stream& stream, const Qua
 		{
 			const Attr& a = stream.data[i];
 
-			float ws = a.f[0] + a.f[1] + a.f[2] + a.f[3];
-			float wsi = (ws == 0.f) ? 0.f : 1.f / ws;
+			cgltf_float ws = a.f[0] + a.f[1] + a.f[2] + a.f[3];
+			cgltf_float wsi = (ws == 0.f) ? 0.f : 1.f / ws;
 
 			uint8_t v[4] = {
 			    uint8_t(meshopt_quantizeUnorm(a.f[0] * wsi, 8)),
@@ -866,11 +874,11 @@ StreamFormat writeIndexStream(std::string& bin, const std::vector<unsigned int>&
 	}
 }
 
-StreamFormat writeTimeStream(std::string& bin, const std::vector<float>& data)
+StreamFormat writeTimeStream(std::string& bin, const std::vector<cgltf_float>& data)
 {
 	for (size_t i = 0; i < data.size(); ++i)
 	{
-		float v[1] = {data[i]};
+		cgltf_float32 v[1] = {cgltf_float32(data[i])};
 		bin.append(reinterpret_cast<const char*>(v), sizeof(v));
 	}
 
@@ -938,7 +946,7 @@ StreamFormat writeKeyframeStream(std::string& bin, cgltf_animation_path_type typ
 			}
 			else
 			{
-				float v[3] = {a.f[0], a.f[1], a.f[2]};
+				cgltf_float32 v[3] = {cgltf_float32(a.f[0]), cgltf_float32(a.f[1]), cgltf_float32(a.f[2])};
 				bin.append(reinterpret_cast<const char*>(v), sizeof(v));
 			}
 		}
@@ -952,7 +960,7 @@ StreamFormat writeKeyframeStream(std::string& bin, cgltf_animation_path_type typ
 		{
 			const Attr& a = data[i];
 
-			float v[4] = {a.f[0], a.f[1], a.f[2], a.f[3]};
+			cgltf_float32 v[4] = {cgltf_float32(a.f[0]), cgltf_float32(a.f[1]), cgltf_float32(a.f[2]), cgltf_float32(a.f[3])};
 			bin.append(reinterpret_cast<const char*>(v), sizeof(v));
 		}
 

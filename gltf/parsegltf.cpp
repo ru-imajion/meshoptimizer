@@ -38,7 +38,7 @@ static const char* getError(cgltf_result result, cgltf_data* data)
 	}
 }
 
-static void readAccessor(std::vector<float>& data, const cgltf_accessor* accessor)
+static void readAccessor(std::vector<cgltf_float>& data, const cgltf_accessor* accessor)
 {
 	assert(accessor->type == cgltf_type_scalar);
 
@@ -50,7 +50,7 @@ static void readAccessor(std::vector<Attr>& data, const cgltf_accessor* accessor
 {
 	size_t components = cgltf_num_components(accessor->type);
 
-	std::vector<float> temp(accessor->count * components);
+	std::vector<cgltf_float> temp(accessor->count * components);
 	cgltf_accessor_unpack_floats(accessor, &temp[0], temp.size());
 
 	data.resize(accessor->count);

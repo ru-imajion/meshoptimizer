@@ -22,9 +22,34 @@
 #include <string>
 #include <vector>
 
+#ifdef CGLTF_DOUBLE_PRECISION
+#define GP_FLT_MAX 	DBL_MAX
+#define gp_fabs 	fabs
+#define gp_fmax 	fmax
+#define gp_fmin 	fmin
+#define gp_pow 		pow
+#define gp_sqrt 	sqrt
+#define gp_sin 		sin
+#define gp_cos 		cos
+#define gp_asin		asin
+#define gp_acos 	acos
+#else
+#define GP_FLT_MAX 	FLT_MAX
+#define gp_fabs 	fabsf
+#define gp_fmax 	fmaxf
+#define gp_fmin 	fminf
+#define gp_pow 		powf
+#define gp_sqrt 	sqrtf
+#define gp_sin	 	sinf
+#define gp_cos 		cosf
+#define gp_asin		asinf
+#define gp_acos 	acosf
+#endif
+
+
 struct Attr
 {
-	float f[4];
+	cgltf_float f[4];
 };
 
 struct Stream
@@ -40,7 +65,7 @@ struct Stream
 
 struct Transform
 {
-	float data[16];
+	cgltf_float data[16];
 };
 
 struct Mesh
@@ -58,7 +83,7 @@ struct Mesh
 	std::vector<unsigned int> indices;
 
 	size_t targets;
-	std::vector<float> target_weights;
+	std::vector<cgltf_float> target_weights;
 	std::vector<const char*> target_names;
 
 	std::vector<cgltf_material_mapping> variants;
@@ -76,7 +101,7 @@ struct Track
 
 	cgltf_interpolation_type interpolation;
 
-	std::vector<float> time; // empty for resampled or constant animations
+	std::vector<cgltf_float> time; // empty for resampled or constant animations
 	std::vector<Attr> data;
 };
 
@@ -84,7 +109,7 @@ struct Animation
 {
 	const char* name;
 
-	float start;
+	cgltf_float start;
 	int frames;
 
 	std::vector<Track> tracks;
@@ -132,10 +157,10 @@ struct Settings
 	bool mesh_merge;
 	bool mesh_instancing;
 
-	float simplify_threshold;
+	cgltf_float simplify_threshold;
 	bool simplify_aggressive;
 	bool simplify_lock_borders;
-	float simplify_debug;
+	cgltf_float simplify_debug;
 
 	int meshlet_debug;
 
@@ -145,7 +170,7 @@ struct Settings
 
 	bool texture_pow2;
 	bool texture_flipy;
-	float texture_scale;
+	cgltf_float texture_scale;
 	int texture_limit;
 
 	TextureMode texture_mode[TextureKind__Count];
@@ -164,16 +189,16 @@ struct Settings
 
 struct QuantizationPosition
 {
-	float offset[3];
-	float scale;
+	cgltf_float offset[3];
+	cgltf_float scale;
 	int bits;
 	bool normalized;
 };
 
 struct QuantizationTexture
 {
-	float offset[2];
-	float scale[2];
+	cgltf_float offset[2];
+	cgltf_float scale[2];
 	int bits;
 	bool normalized;
 };
@@ -297,7 +322,7 @@ cgltf_data* parseGltf(const char* path, std::vector<Mesh>& meshes, std::vector<A
 void processAnimation(Animation& animation, const Settings& settings);
 void processMesh(Mesh& mesh, const Settings& settings);
 
-void debugSimplify(const Mesh& mesh, Mesh& kinds, Mesh& loops, float ratio);
+void debugSimplify(const Mesh& mesh, Mesh& kinds, Mesh& loops, cgltf_float ratio);
 void debugMeshlets(const Mesh& mesh, Mesh& meshlets, Mesh& bounds, int max_vertices, bool scan);
 
 bool compareMeshTargets(const Mesh& lhs, const Mesh& rhs);
@@ -333,15 +358,15 @@ void markScenes(cgltf_data* data, std::vector<NodeInfo>& nodes);
 void markAnimated(cgltf_data* data, std::vector<NodeInfo>& nodes, const std::vector<Animation>& animations);
 void markNeededNodes(cgltf_data* data, std::vector<NodeInfo>& nodes, const std::vector<Mesh>& meshes, const std::vector<Animation>& animations, const Settings& settings);
 void remapNodes(cgltf_data* data, std::vector<NodeInfo>& nodes, size_t& node_offset);
-void decomposeTransform(float translation[3], float rotation[4], float scale[3], const float* transform);
+void decomposeTransform(cgltf_float translation[3], cgltf_float rotation[4], cgltf_float scale[3], const cgltf_float* transform);
 
 QuantizationPosition prepareQuantizationPosition(const std::vector<Mesh>& meshes, const Settings& settings);
 void prepareQuantizationTexture(cgltf_data* data, std::vector<QuantizationTexture>& result, std::vector<size_t>& indices, const std::vector<Mesh>& meshes, const Settings& settings);
-void getPositionBounds(float min[3], float max[3], const Stream& stream, const QuantizationPosition& qp, const Settings& settings);
+void getPositionBounds(cgltf_float min[3], cgltf_float max[3], const Stream& stream, const QuantizationPosition& qp, const Settings& settings);
 
 StreamFormat writeVertexStream(std::string& bin, const Stream& stream, const QuantizationPosition& qp, const QuantizationTexture& qt, const Settings& settings);
 StreamFormat writeIndexStream(std::string& bin, const std::vector<unsigned int>& stream);
-StreamFormat writeTimeStream(std::string& bin, const std::vector<float>& data);
+StreamFormat writeTimeStream(std::string& bin, const std::vector<cgltf_float>& data);
 StreamFormat writeKeyframeStream(std::string& bin, cgltf_animation_path_type type, const std::vector<Attr>& data, const Settings& settings);
 
 void compressVertexStream(std::string& bin, const std::string& data, size_t count, size_t stride);
@@ -352,7 +377,7 @@ size_t getBufferView(std::vector<BufferView>& views, BufferView::Kind kind, Stre
 
 void comma(std::string& s);
 void append(std::string& s, size_t v);
-void append(std::string& s, float v);
+void append(std::string& s, cgltf_float v);
 void append(std::string& s, const char* v);
 void append(std::string& s, const std::string& v);
 void appendJson(std::string& s, const char* data);

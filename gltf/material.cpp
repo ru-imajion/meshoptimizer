@@ -525,7 +525,7 @@ static int getChannels(const cgltf_image& image, ImageInfo& info, const char* in
 	return info.channels;
 }
 
-static bool shouldKeepAlpha(const cgltf_texture_view& color, float alpha, cgltf_data* data, const char* input_path, std::vector<ImageInfo>& images)
+static bool shouldKeepAlpha(const cgltf_texture_view& color, cgltf_float alpha, cgltf_data* data, const char* input_path, std::vector<ImageInfo>& images)
 {
 	if (alpha != 1.f)
 		return true;

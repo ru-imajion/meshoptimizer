@@ -11,6 +11,13 @@
 #undef NDEBUG
 #include <assert.h>
 
+#ifdef MESHOPT_DOUBLE_PRECISION
+	const unsigned int _VTXSIZE = 24;
+#else
+	const unsigned int _VTXSIZE = 12;
+#endif
+
+
 struct PV
 {
 	unsigned short px, py, pz;
@@ -813,24 +820,24 @@ void encodeFilterExpZero()
 
 static void clusterBoundsDegenerate()
 {
-	const float vbd[] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
+	const meshopt_float vbd[] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
 	const unsigned int ibd[] = {0, 0, 0};
 	const unsigned int ib1[] = {0, 1, 2};
 
 	// all of the bounds below are degenerate as they use 0 triangles, one topology-degenerate triangle and one position-degenerate triangle respectively
-	meshopt_Bounds bounds0 = meshopt_computeClusterBounds(0, 0, 0, 0, 12);
-	meshopt_Bounds boundsd = meshopt_computeClusterBounds(ibd, 3, vbd, 3, 12);
-	meshopt_Bounds bounds1 = meshopt_computeClusterBounds(ib1, 3, vbd, 3, 12);
+	meshopt_Bounds bounds0 = meshopt_computeClusterBounds(0, 0, 0, 0, _VTXSIZE);
+	meshopt_Bounds boundsd = meshopt_computeClusterBounds(ibd, 3, vbd, 3, _VTXSIZE);
+	meshopt_Bounds bounds1 = meshopt_computeClusterBounds(ib1, 3, vbd, 3, _VTXSIZE);
 
 	assert(bounds0.center[0] == 0 && bounds0.center[1] == 0 && bounds0.center[2] == 0 && bounds0.radius == 0);
 	assert(boundsd.center[0] == 0 && boundsd.center[1] == 0 && boundsd.center[2] == 0 && boundsd.radius == 0);
 	assert(bounds1.center[0] == 0 && bounds1.center[1] == 0 && bounds1.center[2] == 0 && bounds1.radius == 0);
 
-	const float vb1[] = {1, 0, 0, 0, 1, 0, 0, 0, 1};
+	const meshopt_float vb1[] = {1, 0, 0, 0, 1, 0, 0, 0, 1};
 	const unsigned int ib2[] = {0, 1, 2, 0, 2, 1};
 
 	// these bounds have a degenerate cone since the cluster has two triangles with opposite normals
-	meshopt_Bounds bounds2 = meshopt_computeClusterBounds(ib2, 6, vb1, 3, 12);
+	meshopt_Bounds bounds2 = meshopt_computeClusterBounds(ib2, 6, vb1, 3, _VTXSIZE);
 
 	assert(bounds2.cone_apex[0] == 0 && bounds2.cone_apex[1] == 0 && bounds2.cone_apex[2] == 0);
 	assert(bounds2.cone_axis[0] == 0 && bounds2.cone_axis[1] == 0 && bounds2.cone_axis[2] == 0);
@@ -867,30 +874,30 @@ static void customAllocator()
 
 	assert(allocCount == 0 && freeCount == 0);
 
-	float vb[] = {1, 0, 0, 0, 1, 0, 0, 0, 1};
+	meshopt_float vb[] = {1, 0, 0, 0, 1, 0, 0, 0, 1};
 	unsigned int ib[] = {0, 1, 2};
 	unsigned short ibs[] = {0, 1, 2};
 
 	// meshopt_computeClusterBounds doesn't allocate
-	meshopt_computeClusterBounds(ib, 3, vb, 3, 12);
+	meshopt_computeClusterBounds(ib, 3, vb, 3, _VTXSIZE);
 	assert(allocCount == 0 && freeCount == 0);
 
 	// ... unless IndexAdapter is used
-	meshopt_computeClusterBounds(ibs, 3, vb, 3, 12);
+	meshopt_computeClusterBounds(ibs, 3, vb, 3, _VTXSIZE);
 	assert(allocCount == 1 && freeCount == 1);
 
 	// meshopt_optimizeVertexFetch allocates internal remap table and temporary storage for in-place remaps
-	meshopt_optimizeVertexFetch(vb, ib, 3, vb, 3, 12);
+	meshopt_optimizeVertexFetch(vb, ib, 3, vb, 3, _VTXSIZE);
 	assert(allocCount == 3 && freeCount == 3);
 
 	// ... plus one for IndexAdapter
-	meshopt_optimizeVertexFetch(vb, ibs, 3, vb, 3, 12);
+	meshopt_optimizeVertexFetch(vb, ibs, 3, vb, 3, _VTXSIZE);
 	assert(allocCount == 6 && freeCount == 6);
 
 	meshopt_setAllocator(operator new, operator delete);
 
 	// customAlloc & customFree should not get called anymore
-	meshopt_optimizeVertexFetch(vb, ib, 3, vb, 3, 12);
+	meshopt_optimizeVertexFetch(vb, ib, 3, vb, 3, _VTXSIZE);
 	assert(allocCount == 6 && freeCount == 6);
 
 	allocCount = freeCount = 0;
@@ -900,7 +907,7 @@ static void emptyMesh()
 {
 	meshopt_optimizeVertexCache(0, 0, 0, 0);
 	meshopt_optimizeVertexCacheFifo(0, 0, 0, 0, 16);
-	meshopt_optimizeOverdraw(0, 0, 0, 0, 0, 12, 1.f);
+	meshopt_optimizeOverdraw(0, 0, 0, 0, 0, _VTXSIZE, 1.f);
 }
 
 static void simplify()
@@ -923,7 +930,7 @@ static void simplify()
 	    4,
 	};
 
-	float vb[] = {
+	meshopt_float vb[] = {
 	    0,
 	    4,
 	    0,
@@ -950,8 +957,8 @@ static void simplify()
 	    3,
 	};
 
-	float error;
-	assert(meshopt_simplify(ib, ib, 12, vb, 6, 12, 3, 1e-2f, 0, &error) == 3);
+	meshopt_float error;
+	assert(meshopt_simplify(ib, ib, 12, vb, 6, _VTXSIZE, 3, 1e-2f, 0, &error) == 3);
 	assert(error == 0.f);
 	assert(memcmp(ib, expected, sizeof(expected)) == 0);
 }
@@ -959,52 +966,53 @@ static void simplify()
 static void simplifyStuck()
 {
 	// tetrahedron can't be simplified due to collapse error restrictions
-	float vb1[] = {0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1};
+	meshopt_float vb1[] = {0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1};
 	unsigned int ib1[] = {0, 1, 2, 0, 2, 3, 0, 3, 1, 2, 1, 3};
 
-	assert(meshopt_simplify(ib1, ib1, 12, vb1, 4, 12, 6, 1e-3f) == 12);
+
+	assert(meshopt_simplify(ib1, ib1, 12, vb1, 4, _VTXSIZE, 6, 1e-3f) == 12);
 
 	// 5-vertex strip can't be simplified due to topology restriction since middle triangle has flipped winding
-	float vb2[] = {0, 0, 0, 1, 0, 0, 2, 0, 0, 0.5f, 1, 0, 1.5f, 1, 0};
+	meshopt_float vb2[] = {0, 0, 0, 1, 0, 0, 2, 0, 0, 0.5f, 1, 0, 1.5f, 1, 0};
 	unsigned int ib2[] = {0, 1, 3, 3, 1, 4, 1, 2, 4}; // ok
 	unsigned int ib3[] = {0, 1, 3, 1, 3, 4, 1, 2, 4}; // flipped
 
-	assert(meshopt_simplify(ib2, ib2, 9, vb2, 5, 12, 6, 1e-3f) == 6);
-	assert(meshopt_simplify(ib3, ib3, 9, vb2, 5, 12, 6, 1e-3f) == 9);
+	assert(meshopt_simplify(ib2, ib2, 9, vb2, 5, _VTXSIZE, 6, 1e-3f) == 6);
+	assert(meshopt_simplify(ib3, ib3, 9, vb2, 5, _VTXSIZE, 6, 1e-3f) == 9);
 
 	// 4-vertex quad with a locked corner can't be simplified due to border error-induced restriction
-	float vb4[] = {0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 1, 0};
+	meshopt_float vb4[] = {0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 1, 0};
 	unsigned int ib4[] = {0, 1, 3, 0, 3, 2};
 
-	assert(meshopt_simplify(ib4, ib4, 6, vb4, 4, 12, 3, 1e-3f) == 6);
+	assert(meshopt_simplify(ib4, ib4, 6, vb4, 4, _VTXSIZE, 3, 1e-3f) == 6);
 
 	// 4-vertex quad with a locked corner can't be simplified due to border error-induced restriction
-	float vb5[] = {0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 1, 0, 1, 1, 0};
+	meshopt_float vb5[] = {0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 1, 0, 1, 1, 0};
 	unsigned int ib5[] = {0, 1, 4, 0, 3, 2};
 
-	assert(meshopt_simplify(ib5, ib5, 6, vb5, 5, 12, 3, 1e-3f) == 6);
+	assert(meshopt_simplify(ib5, ib5, 6, vb5, 5, _VTXSIZE, 3, 1e-3f) == 6);
 }
 
 static void simplifySloppyStuck()
 {
-	const float vb[] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
+	const meshopt_float vb[] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
 	const unsigned int ib[] = {0, 1, 2, 0, 1, 2};
 
 	unsigned int* target = NULL;
 
 	// simplifying down to 0 triangles results in 0 immediately
-	assert(meshopt_simplifySloppy(target, ib, 3, vb, 3, 12, 0, 0.f) == 0);
+	assert(meshopt_simplifySloppy(target, ib, 3, vb, 3, _VTXSIZE, 0, 0.f) == 0);
 
 	// simplifying down to 2 triangles given that all triangles are degenerate results in 0 as well
-	assert(meshopt_simplifySloppy(target, ib, 6, vb, 3, 12, 6, 0.f) == 0);
+	assert(meshopt_simplifySloppy(target, ib, 6, vb, 3, _VTXSIZE, 6, 0.f) == 0);
 }
 
 static void simplifyPointsStuck()
 {
-	const float vb[] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
+	const meshopt_float vb[] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
 
 	// simplifying down to 0 points results in 0 immediately
-	assert(meshopt_simplifyPoints(0, vb, 3, 12, 0) == 0);
+	assert(meshopt_simplifyPoints(0, vb, 3, _VTXSIZE, 0) == 0);
 }
 
 static void simplifyFlip()
@@ -1013,7 +1021,7 @@ static void simplifyFlip()
 	// and progressively collapsing edges until the only ones left violate border or flip constraints.
 	// there is only one valid non-flip collapse, so we validate that we take it; when flips are allowed,
 	// the wrong collapse is picked instead.
-	float vb[] = {
+	meshopt_float vb[] = {
 	    1.000000f, 1.000000f, -1.000000f,
 	    1.000000f, 1.000000f, 1.000000f,
 	    1.000000f, -1.000000f, 1.000000f,
@@ -1050,20 +1058,20 @@ static void simplifyFlip()
 	    5, 6, 1, // clang-format :-/
 	};
 
-	assert(meshopt_simplify(ib, ib, 30, vb, 9, 12, 3, 1e-3f) == 24);
+	assert(meshopt_simplify(ib, ib, 30, vb, 9, _VTXSIZE, 3, 1e-3f) == 24);
 	assert(memcmp(ib, expected, sizeof(expected)) == 0);
 }
 
 static void simplifyScale()
 {
-	const float vb[] = {0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 3};
+	const meshopt_float vb[] = {0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 3};
 
-	assert(meshopt_simplifyScale(vb, 4, 12) == 3.f);
+	assert(meshopt_simplifyScale(vb, 4, _VTXSIZE) == 3.f);
 }
 
 static void simplifyDegenerate()
 {
-	float vb[] = {
+	meshopt_float vb[] = {
 	    0.000000f, 0.000000f, 0.000000f,
 	    0.000000f, 1.000000f, 0.000000f,
 	    0.000000f, 2.000000f, 0.000000f,
@@ -1090,13 +1098,13 @@ static void simplifyDegenerate()
 	    4, 1, 2, // clang-format :-/
 	};
 
-	assert(meshopt_simplify(ib, ib, 18, vb, 6, 12, 3, 1e-3f) == 6);
+	assert(meshopt_simplify(ib, ib, 18, vb, 6, _VTXSIZE, 3, 1e-3f) == 6);
 	assert(memcmp(ib, expected, sizeof(expected)) == 0);
 }
 
 static void simplifyLockBorder()
 {
-	float vb[] = {
+	meshopt_float vb[] = {
 	    0.000000f, 0.000000f, 0.000000f,
 	    0.000000f, 1.000000f, 0.000000f,
 	    0.000000f, 2.000000f, 0.000000f,
@@ -1132,25 +1140,25 @@ static void simplifyLockBorder()
 	    7, 5, 8, // clang-format :-/
 	};
 
-	assert(meshopt_simplify(ib, ib, 24, vb, 9, 12, 3, 1e-3f, meshopt_SimplifyLockBorder) == 18);
+	assert(meshopt_simplify(ib, ib, 24, vb, 9, _VTXSIZE, 3, 1e-3f, meshopt_SimplifyLockBorder) == 18);
 	assert(memcmp(ib, expected, sizeof(expected)) == 0);
 }
 
 static void simplifyAttr()
 {
-	float vb[8 * 3][6];
+	meshopt_float vb[8 * 3][6];
 
 	for (int y = 0; y < 8; ++y)
 	{
 		// first four rows are a blue gradient, next four rows are a yellow gradient
-		float r = (y < 4) ? 0.8f + y * 0.05f : 0.f;
-		float g = (y < 4) ? 0.8f + y * 0.05f : 0.f;
-		float b = (y < 4) ? 0.f : 0.8f + (7 - y) * 0.05f;
+		meshopt_float r = (y < 4) ? 0.8f + y * 0.05f : 0.f;
+		meshopt_float g = (y < 4) ? 0.8f + y * 0.05f : 0.f;
+		meshopt_float b = (y < 4) ? 0.f : 0.8f + (7 - y) * 0.05f;
 
 		for (int x = 0; x < 3; ++x)
 		{
-			vb[y * 3 + x][0] = float(x);
-			vb[y * 3 + x][1] = float(y);
+			vb[y * 3 + x][0] = meshopt_float(x);
+			vb[y * 3 + x][1] = meshopt_float(y);
 			vb[y * 3 + x][2] = 0.03f * x;
 			vb[y * 3 + x][3] = r;
 			vb[y * 3 + x][4] = g;
@@ -1173,15 +1181,26 @@ static void simplifyAttr()
 		}
 	}
 
-	float attr_weights[3] = {0.01f, 0.01f, 0.01f};
+	meshopt_float attr_weights[3] = {0.01f, 0.01f, 0.01f};
 
+
+#ifdef MESHOPT_DOUBLE_PRECISION
+	// +++ Why is this different?
+	unsigned int expected[3][6] = {
+	    {0, 2, 9, 9, 2, 11},
+	    {9, 11, 12, 12, 11, 17},
+	    {12, 17, 20, 12, 20, 21},
+	};
+	assert(meshopt_simplifyWithAttributes(ib[0], ib[0], 7 * 2 * 6, vb[0], 8 * 3, 6 * sizeof(meshopt_float), vb[0] + 3, 6 * sizeof(meshopt_float), attr_weights, 3, 6 * 3, 1e-2f) == 21);
+#else
 	unsigned int expected[3][6] = {
 	    {0, 2, 9, 9, 2, 11},
 	    {9, 11, 12, 12, 11, 14},
 	    {12, 14, 21, 21, 14, 23},
 	};
+	assert(meshopt_simplifyWithAttributes(ib[0], ib[0], 7 * 2 * 6, vb[0], 8 * 3, 6 * sizeof(meshopt_float), vb[0] + 3, 6 * sizeof(meshopt_float), attr_weights, 3, 6 * 3, 1e-2f) == 18);
+#endif
 
-	assert(meshopt_simplifyWithAttributes(ib[0], ib[0], 7 * 2 * 6, vb[0], 8 * 3, 6 * sizeof(float), vb[0] + 3, 6 * sizeof(float), attr_weights, 3, 6 * 3, 1e-2f) == 18);
 	assert(memcmp(ib, expected, sizeof(expected)) == 0);
 }
 
@@ -1189,11 +1208,11 @@ static void adjacency()
 {
 	// 0 1/4
 	// 2/5 3
-	const float vb[] = {0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 0, 1, 0};
+	const meshopt_float vb[] = {0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 0, 1, 0};
 	const unsigned int ib[] = {0, 1, 2, 5, 4, 3};
 
 	unsigned int adjib[12];
-	meshopt_generateAdjacencyIndexBuffer(adjib, ib, 6, vb, 6, 12);
+	meshopt_generateAdjacencyIndexBuffer(adjib, ib, 6, vb, 6, _VTXSIZE);
 
 	unsigned int expected[] = {
 	    // patch 0
@@ -1216,11 +1235,11 @@ static void tessellation()
 {
 	// 0 1/4
 	// 2/5 3
-	const float vb[] = {0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 0, 1, 0};
+	const meshopt_float vb[] = {0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 0, 1, 0};
 	const unsigned int ib[] = {0, 1, 2, 5, 4, 3};
 
 	unsigned int tessib[24];
-	meshopt_generateTessellationIndexBuffer(tessib, ib, 6, vb, 6, 12);
+	meshopt_generateTessellationIndexBuffer(tessib, ib, 6, vb, 6, _VTXSIZE);
 
 	unsigned int expected[] = {
 	    // patch 0
@@ -1245,10 +1264,9 @@ static void tessellation()
 
 static void quantizeFloat()
 {
-	volatile float zero = 0.f; // avoids div-by-zero warnings
+	volatile meshopt_float zero = 0.f; // avoids div-by-zero warnings
 
 	assert(meshopt_quantizeFloat(1.2345f, 23) == 1.2345f);
-
 	assert(meshopt_quantizeFloat(1.2345f, 16) == 1.2344971f);
 	assert(meshopt_quantizeFloat(1.2345f, 8) == 1.2343750f);
 	assert(meshopt_quantizeFloat(1.2345f, 4) == 1.25f);
@@ -1259,13 +1277,13 @@ static void quantizeFloat()
 	assert(meshopt_quantizeFloat(1.f / zero, 0) == 1.f / zero);
 	assert(meshopt_quantizeFloat(-1.f / zero, 0) == -1.f / zero);
 
-	float nanf = meshopt_quantizeFloat(zero / zero, 8);
+	meshopt_float nanf = meshopt_quantizeFloat(zero / zero, 8);
 	assert(nanf != nanf);
 }
 
 static void quantizeHalf()
 {
-	volatile float zero = 0.f; // avoids div-by-zero warnings
+	volatile meshopt_float zero = 0.f; // avoids div-by-zero warnings
 
 	// normal
 	assert(meshopt_quantizeHalf(1.2345f) == 0x3cf0);
@@ -1309,7 +1327,7 @@ static void quantizeHalf()
 
 static void dequantizeHalf()
 {
-	volatile float zero = 0.f; // avoids div-by-zero warnings
+	volatile meshopt_float zero = 0.f; // avoids div-by-zero warnings
 
 	// normal
 	assert(meshopt_dequantizeHalf(0x3cf0) == 1.234375f);
@@ -1336,7 +1354,7 @@ static void dequantizeHalf()
 	assert(meshopt_dequantizeHalf(0xfc00) == -1.f / zero);
 
 	// nan
-	float nanf = meshopt_dequantizeHalf(0x7e00);
+	meshopt_float nanf = meshopt_dequantizeHalf(0x7e00);
 	assert(nanf != nanf);
 }
 

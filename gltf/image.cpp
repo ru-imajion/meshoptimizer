@@ -249,7 +249,7 @@ void adjustDimensions(int& width, int& height, const Settings& settings)
 
 	if (settings.texture_limit && (width > settings.texture_limit || height > settings.texture_limit))
 	{
-		float limit_scale = float(settings.texture_limit) / float(width > height ? width : height);
+		cgltf_float limit_scale = cgltf_float(settings.texture_limit) / cgltf_float(width > height ? width : height);
 
 		width = int(width * limit_scale);
 		height = int(height * limit_scale);

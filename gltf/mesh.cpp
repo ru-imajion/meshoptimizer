@@ -8,19 +8,19 @@
 
 #include "../src/meshoptimizer.h"
 
-static float inverseTranspose(float* result, const float* transform)
+static cgltf_float inverseTranspose(cgltf_float* result, const cgltf_float* transform)
 {
-	float m[4][4] = {};
-	memcpy(m, transform, 16 * sizeof(float));
+	cgltf_float m[4][4] = {};
+	memcpy(m, transform, 16 * sizeof(cgltf_float));
 
-	float det =
+	cgltf_float det =
 	    m[0][0] * (m[1][1] * m[2][2] - m[2][1] * m[1][2]) -
 	    m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0]) +
 	    m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]);
 
-	float invdet = (det == 0.f) ? 0.f : 1.f / det;
+	cgltf_float invdet = (det == 0.f) ? 0.f : 1.f / det;
 
-	float r[4][4] = {};
+	cgltf_float r[4][4] = {};
 
 	r[0][0] = (m[1][1] * m[2][2] - m[2][1] * m[1][2]) * invdet;
 	r[1][0] = (m[0][2] * m[2][1] - m[0][1] * m[2][2]) * invdet;
@@ -34,30 +34,30 @@ static float inverseTranspose(float* result, const float* transform)
 
 	r[3][3] = 1.f;
 
-	memcpy(result, r, 16 * sizeof(float));
+	memcpy(result, r, 16 * sizeof(cgltf_float));
 
 	return det;
 }
 
-static void transformPosition(float* res, const float* ptr, const float* transform)
+static void transformPosition(cgltf_float* res, const cgltf_float* ptr, const cgltf_float* transform)
 {
-	float x = ptr[0] * transform[0] + ptr[1] * transform[4] + ptr[2] * transform[8] + transform[12];
-	float y = ptr[0] * transform[1] + ptr[1] * transform[5] + ptr[2] * transform[9] + transform[13];
-	float z = ptr[0] * transform[2] + ptr[1] * transform[6] + ptr[2] * transform[10] + transform[14];
+	cgltf_float x = ptr[0] * transform[0] + ptr[1] * transform[4] + ptr[2] * transform[8] + transform[12];
+	cgltf_float y = ptr[0] * transform[1] + ptr[1] * transform[5] + ptr[2] * transform[9] + transform[13];
+	cgltf_float z = ptr[0] * transform[2] + ptr[1] * transform[6] + ptr[2] * transform[10] + transform[14];
 
 	res[0] = x;
 	res[1] = y;
 	res[2] = z;
 }
 
-static void transformNormal(float* res, const float* ptr, const float* transform)
+static void transformNormal(cgltf_float* res, const cgltf_float* ptr, const cgltf_float* transform)
 {
-	float x = ptr[0] * transform[0] + ptr[1] * transform[4] + ptr[2] * transform[8];
-	float y = ptr[0] * transform[1] + ptr[1] * transform[5] + ptr[2] * transform[9];
-	float z = ptr[0] * transform[2] + ptr[1] * transform[6] + ptr[2] * transform[10];
+	cgltf_float x = ptr[0] * transform[0] + ptr[1] * transform[4] + ptr[2] * transform[8];
+	cgltf_float y = ptr[0] * transform[1] + ptr[1] * transform[5] + ptr[2] * transform[9];
+	cgltf_float z = ptr[0] * transform[2] + ptr[1] * transform[6] + ptr[2] * transform[10];
 
-	float l = sqrtf(x * x + y * y + z * z);
-	float s = (l == 0.f) ? 0.f : 1 / l;
+	cgltf_float l = gp_sqrt(x * x + y * y + z * z);
+	cgltf_float s = (l == 0.f) ? 0.f : 1 / l;
 
 	res[0] = x * s;
 	res[1] = y * s;
@@ -70,11 +70,11 @@ static void transformMesh(Mesh& target, const Mesh& mesh, const cgltf_node* node
 	assert(target.streams.size() == mesh.streams.size());
 	assert(target.indices.size() == mesh.indices.size());
 
-	float transform[16];
+	cgltf_float transform[16];
 	cgltf_node_transform_world(node, transform);
 
-	float transforminvt[16];
-	float det = inverseTranspose(transforminvt, transform);
+	cgltf_float transforminvt[16];
+	cgltf_float det = inverseTranspose(transforminvt, transform);
 
 	for (size_t si = 0; si < mesh.streams.size(); ++si)
 	{
@@ -295,6 +295,7 @@ void mergeMeshInstances(Mesh& mesh)
 	mesh.nodes.clear();
 }
 
+
 void mergeMeshes(std::vector<Mesh>& meshes, const Settings& settings)
 {
 	for (size_t i = 0; i < meshes.size(); ++i)
@@ -380,13 +381,13 @@ void filterEmptyMeshes(std::vector<Mesh>& meshes)
 	meshes.resize(write);
 }
 
-static bool isConstant(const std::vector<Attr>& data, const Attr& value, float tolerance = 0.01f)
+static bool isConstant(const std::vector<Attr>& data, const Attr& value, cgltf_float tolerance = 0.01f)
 {
 	for (size_t i = 0; i < data.size(); ++i)
 	{
 		const Attr& a = data[i];
 
-		if (fabsf(a.f[0] - value.f[0]) > tolerance || fabsf(a.f[1] - value.f[1]) > tolerance || fabsf(a.f[2] - value.f[2]) > tolerance || fabsf(a.f[3] - value.f[3]) > tolerance)
+		if (gp_fabs(a.f[0] - value.f[0]) > tolerance || gp_fabs(a.f[1] - value.f[1]) > tolerance || gp_fabs(a.f[2] - value.f[2]) > tolerance || gp_fabs(a.f[3] - value.f[3]) > tolerance)
 			return false;
 	}
 
@@ -524,7 +525,7 @@ static Stream* getStream(Mesh& mesh, cgltf_attribute_type type, int index = 0)
 	return 0;
 }
 
-static void simplifyMesh(Mesh& mesh, float threshold, bool aggressive, bool lock_borders)
+static void simplifyMesh(Mesh& mesh, cgltf_float threshold, bool aggressive, bool lock_borders)
 {
 	assert(mesh.type == cgltf_primitive_type_triangles);
 
@@ -538,8 +539,8 @@ static void simplifyMesh(Mesh& mesh, float threshold, bool aggressive, bool lock
 	size_t vertex_count = mesh.streams[0].data.size();
 
 	size_t target_index_count = size_t(double(mesh.indices.size() / 3) * threshold) * 3;
-	float target_error = 1e-2f;
-	float target_error_aggressive = 1e-1f;
+	cgltf_float target_error = 1e-2f;
+	cgltf_float target_error_aggressive = 1e-1f;
 	unsigned int options = lock_borders ? meshopt_SimplifyLockBorder : 0;
 
 	if (target_index_count < 1)
@@ -591,8 +592,8 @@ static void optimizeMesh(Mesh& mesh, bool compressmore)
 
 struct BoneInfluence
 {
-	float i;
-	float w;
+	cgltf_float i;
+	cgltf_float w;
 };
 
 struct BoneInfluenceWeightPredicate
@@ -626,7 +627,7 @@ static void filterBones(Mesh& mesh)
 		return;
 
 	// weights below cutoff can't be represented in quantized 8-bit storage
-	const float weight_cutoff = 0.5f / 255.f;
+	const cgltf_float weight_cutoff = 0.5f / 255.f;
 
 	size_t vertex_count = mesh.streams[0].data.size();
 
@@ -685,7 +686,7 @@ static void filterBones(Mesh& mesh)
 	}
 }
 
-static void simplifyPointMesh(Mesh& mesh, float threshold)
+static void simplifyPointMesh(Mesh& mesh, cgltf_float threshold)
 {
 	assert(mesh.type == cgltf_primitive_type_points);
 
@@ -778,7 +779,7 @@ extern MESHOPTIMIZER_API unsigned char* meshopt_simplifyDebugKind;
 extern MESHOPTIMIZER_API unsigned int* meshopt_simplifyDebugLoop;
 extern MESHOPTIMIZER_API unsigned int* meshopt_simplifyDebugLoopBack;
 
-void debugSimplify(const Mesh& source, Mesh& kinds, Mesh& loops, float ratio)
+void debugSimplify(const Mesh& source, Mesh& kinds, Mesh& loops, cgltf_float ratio)
 {
 	Mesh mesh = source;
 	assert(mesh.type == cgltf_primitive_type_triangles);
@@ -887,7 +888,7 @@ void debugMeshlets(const Mesh& source, Mesh& meshlets, Mesh& bounds, int max_ver
 	const Stream* positions = getStream(mesh, cgltf_attribute_type_position);
 	assert(positions);
 
-	const float cone_weight = 0.f;
+	const cgltf_float cone_weight = 0.f;
 
 	size_t max_triangles = (max_vertices * 2 + 3) & ~3;
 	size_t max_meshlets = meshopt_buildMeshletsBound(mesh.indices.size(), max_vertices, max_triangles);
@@ -916,7 +917,7 @@ void debugMeshlets(const Mesh& source, Mesh& meshlets, Mesh& bounds, int max_ver
 		h *= 0x5bd1e995;
 		h ^= h >> 15;
 
-		Attr c = {{float(h & 0xff) / 255.f, float((h >> 8) & 0xff) / 255.f, float((h >> 16) & 0xff) / 255.f, 1.f}};
+		Attr c = {{cgltf_float(h & 0xff) / 255.f, cgltf_float((h >> 8) & 0xff) / 255.f, cgltf_float((h >> 16) & 0xff) / 255.f, 1.f}};
 
 		unsigned int offset = unsigned(mv.data.size());
 
@@ -955,7 +956,7 @@ void debugMeshlets(const Mesh& source, Mesh& meshlets, Mesh& bounds, int max_ver
 		h *= 0x5bd1e995;
 		h ^= h >> 15;
 
-		Attr c = {{float(h & 0xff) / 255.f, float((h >> 8) & 0xff) / 255.f, float((h >> 16) & 0xff) / 255.f, 0.1f}};
+		Attr c = {{cgltf_float(h & 0xff) / 255.f, cgltf_float((h >> 8) & 0xff) / 255.f, cgltf_float((h >> 16) & 0xff) / 255.f, 0.1f}};
 
 		unsigned int offset = unsigned(bv.data.size());
 
@@ -963,17 +964,17 @@ void debugMeshlets(const Mesh& source, Mesh& meshlets, Mesh& bounds, int max_ver
 
 		for (int y = 0; y <= N; ++y)
 		{
-			float u = (y == N) ? 0 : float(y) / N * 2 * 3.1415926f;
-			float sinu = sinf(u), cosu = cosf(u);
+			cgltf_float u = (y == N) ? 0 : cgltf_float(y) / N * 2 * 3.1415926f;
+			cgltf_float sinu = gp_sin(u), cosu = gp_cos(u);
 
 			for (int x = 0; x <= N; ++x)
 			{
-				float v = float(x) / N * 3.1415926f;
-				float sinv = sinf(v), cosv = cosf(v);
+				cgltf_float v = cgltf_float(x) / N * 3.1415926f;
+				cgltf_float sinv = gp_sin(v), cosv = gp_cos(v);
 
-				float fx = sinv * cosu;
-				float fy = sinv * sinu;
-				float fz = cosv;
+				cgltf_float fx = sinv * cosu;
+				cgltf_float fy = sinv * sinu;
+				cgltf_float fz = cosv;
 
 				Attr p = {{mb.center[0] + mb.radius * fx, mb.center[1] + mb.radius * fy, mb.center[2] + mb.radius * fz, 1.f}};
 

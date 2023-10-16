@@ -18,6 +18,11 @@ option(MESHOPT_BUILD_DEMO "Build demo" OFF)
 option(MESHOPT_BUILD_GLTFPACK "Build gltfpack" OFF)
 option(MESHOPT_BUILD_SHARED_LIBS "Build shared libraries" OFF)
 option(MESHOPT_WERROR "Treat warnings as errors" OFF)
+option(MESHOPT_DOUBLE_PRECISION "Double Precision" OFF)
+if(MESHOPT_DOUBLE_PRECISION)
+	add_definitions(-DCGLTF_DOUBLE_PRECISION)
+    add_definitions(-DMESHOPT_DOUBLE_PRECISION)
+endif()
 set(MESHOPT_BASISU_PATH "" CACHE STRING "")
 
 set(SOURCES

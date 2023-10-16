@@ -182,8 +182,8 @@ static void writeTextureInfo(std::string& json, const cgltf_data* data, const cg
 	{
 		transform.offset[0] += qt->offset[0];
 		transform.offset[1] += qt->offset[1];
-		transform.scale[0] *= qt->scale[0] / float((1 << qt->bits) - 1) * (qt->normalized ? 65535.f : 1.f);
-		transform.scale[1] *= qt->scale[1] / float((1 << qt->bits) - 1) * (qt->normalized ? 65535.f : 1.f);
+		transform.scale[0] *= qt->scale[0] / cgltf_float((1 << qt->bits) - 1) * (qt->normalized ? 65535.f : 1.f);
+		transform.scale[1] *= qt->scale[1] / cgltf_float((1 << qt->bits) - 1) * (qt->normalized ? 65535.f : 1.f);
 		has_transform = true;
 	}
 
@@ -223,14 +223,14 @@ static void writeTextureInfo(std::string& json, const cgltf_data* data, const cg
 	append(json, "}");
 }
 
-static const float white[4] = {1, 1, 1, 1};
-static const float black[4] = {0, 0, 0, 0};
+static const cgltf_float white[4] = {1, 1, 1, 1};
+static const cgltf_float black[4] = {0, 0, 0, 0};
 
 static void writeMaterialComponent(std::string& json, const cgltf_data* data, const cgltf_pbr_metallic_roughness& pbr, const QuantizationTexture* qt, std::vector<TextureInfo>& textures)
 {
 	comma(json);
 	append(json, "\"pbrMetallicRoughness\":{");
-	if (memcmp(pbr.base_color_factor, white, 16) != 0)
+	if (memcmp(pbr.base_color_factor, white, sizeof(pbr.base_color_factor)) != 0)
 	{
 		comma(json);
 		append(json, "\"baseColorFactor\":[");
@@ -286,7 +286,7 @@ static void writeMaterialComponent(std::string& json, const cgltf_data* data, co
 		append(json, "\"specularGlossinessTexture\":");
 		writeTextureInfo(json, data, pbr.specular_glossiness_texture, qt, textures);
 	}
-	if (memcmp(pbr.diffuse_factor, white, 16) != 0)
+	if (memcmp(pbr.diffuse_factor, white, sizeof(pbr.diffuse_factor)) != 0)
 	{
 		comma(json);
 		append(json, "\"diffuseFactor\":[");
@@ -299,7 +299,7 @@ static void writeMaterialComponent(std::string& json, const cgltf_data* data, co
 		append(json, pbr.diffuse_factor[3]);
 		append(json, "]");
 	}
-	if (memcmp(pbr.specular_factor, white, 12) != 0)
+	if (memcmp(pbr.specular_factor, white, sizeof(pbr.specular_factor)) != 0)
 	{
 		comma(json);
 		append(json, "\"specularFactor\":[");
@@ -408,7 +408,7 @@ static void writeMaterialComponent(std::string& json, const cgltf_data* data, co
 		append(json, "\"specularFactor\":");
 		append(json, tm.specular_factor);
 	}
-	if (memcmp(tm.specular_color_factor, white, 12) != 0)
+	if (memcmp(tm.specular_color_factor, white, sizeof(tm.specular_color_factor)) != 0)
 	{
 		comma(json);
 		append(json, "\"specularColorFactor\":[");
@@ -438,7 +438,7 @@ static void writeMaterialComponent(std::string& json, const cgltf_data* data, co
 		append(json, "\"sheenRoughnessTexture\":");
 		writeTextureInfo(json, data, tm.sheen_roughness_texture, qt, textures);
 	}
-	if (memcmp(tm.sheen_color_factor, black, 12) != 0)
+	if (memcmp(tm.sheen_color_factor, black, sizeof(tm.sheen_color_factor)) != 0)
 	{
 		comma(json);
 		append(json, "\"sheenColorFactor\":[");
@@ -471,13 +471,13 @@ static void writeMaterialComponent(std::string& json, const cgltf_data* data, co
 	if (tm.thickness_factor != 0)
 	{
 		// thickness is in mesh coordinate space which is rescaled by quantization
-		float node_scale = qp ? qp->scale / float((1 << qp->bits) - 1) * (qp->normalized ? 65535.f : 1.f) : 1.f;
+		cgltf_float node_scale = qp ? qp->scale / cgltf_float((1 << qp->bits) - 1) * (qp->normalized ? 65535.f : 1.f) : 1.f;
 
 		comma(json);
 		append(json, "\"thicknessFactor\":");
 		append(json, tm.thickness_factor / node_scale);
 	}
-	if (memcmp(tm.attenuation_color, white, 12) != 0)
+	if (memcmp(tm.attenuation_color, white, sizeof(tm.attenuation_color)) != 0)
 	{
 		comma(json);
 		append(json, "\"attenuationColor\":[");
@@ -488,7 +488,7 @@ static void writeMaterialComponent(std::string& json, const cgltf_data* data, co
 		append(json, tm.attenuation_color[2]);
 		append(json, "]");
 	}
-	if (tm.attenuation_distance != FLT_MAX)
+	if (tm.attenuation_distance != GP_FLT_MAX)
 	{
 		comma(json);
 		append(json, "\"attenuationDistance\":");
@@ -616,7 +616,7 @@ void writeMaterial(std::string& json, const cgltf_data* data, const cgltf_materi
 		writeTextureInfo(json, data, material.emissive_texture, qt, textures);
 	}
 
-	if (memcmp(material.emissive_factor, black, 12) != 0)
+	if (memcmp(material.emissive_factor, black, sizeof(material.emissive_factor)) != 0)
 	{
 		comma(json);
 		append(json, "\"emissiveFactor\":[");
@@ -784,7 +784,7 @@ void writeBufferView(std::string& json, BufferView::Kind kind, StreamFormat::Fil
 	append(json, "}");
 }
 
-static void writeAccessor(std::string& json, size_t view, size_t offset, cgltf_type type, cgltf_component_type component_type, bool normalized, size_t count, const float* min = 0, const float* max = 0, size_t numminmax = 0)
+static void writeAccessor(std::string& json, size_t view, size_t offset, cgltf_type type, cgltf_component_type component_type, bool normalized, size_t count, const cgltf_float* min = 0, const cgltf_float* max = 0, size_t numminmax = 0)
 {
 	append(json, "{\"bufferView\":");
 	append(json, view);
@@ -982,8 +982,8 @@ void writeMeshAttributes(std::string& json, std::vector<BufferView>& views, std:
 		comma(json_accessors);
 		if (stream.type == cgltf_attribute_type_position)
 		{
-			float min[3] = {};
-			float max[3] = {};
+			cgltf_float min[3] = {};
+			cgltf_float max[3] = {};
 			getPositionBounds(min, max, stream, qp, settings);
 
 			writeAccessor(json_accessors, view, offset, format.type, format.component_type, format.normalized, stream.data.size(), min, max, 3);
@@ -1033,12 +1033,12 @@ size_t writeMeshIndices(std::vector<BufferView>& views, std::string& json_access
 	return index_accr;
 }
 
-static size_t writeAnimationTime(std::vector<BufferView>& views, std::string& json_accessors, size_t& accr_offset, float mint, int frames, float period, const Settings& settings)
+static size_t writeAnimationTime(std::vector<BufferView>& views, std::string& json_accessors, size_t& accr_offset, cgltf_float mint, int frames, cgltf_float period, const Settings& settings)
 {
-	std::vector<float> time(frames);
+	std::vector<cgltf_float> time(frames);
 
 	for (int j = 0; j < frames; ++j)
-		time[j] = mint + float(j) * period;
+		time[j] = mint + cgltf_float(j) * period;
 
 	std::string scratch;
 	StreamFormat format = writeTimeStream(scratch, time);
@@ -1062,7 +1062,7 @@ size_t writeJointBindMatrices(std::vector<BufferView>& views, std::string& json_
 
 	for (size_t j = 0; j < skin.joints_count; ++j)
 	{
-		float transform[16] = {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
+		cgltf_float transform[16] = {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
 
 		if (skin.inverse_bind_matrices)
 		{
@@ -1071,7 +1071,7 @@ size_t writeJointBindMatrices(std::vector<BufferView>& views, std::string& json_
 
 		if (settings.quantize && !settings.pos_float)
 		{
-			float node_scale = qp.scale / float((1 << qp.bits) - 1) * (qp.normalized ? 65535.f : 1.f);
+			cgltf_float node_scale = qp.scale / cgltf_float((1 << qp.bits) - 1) * (qp.normalized ? 65535.f : 1.f);
 
 			// pos_offset has to be applied first, thus it results in an offset rotated by the bind matrix
 			transform[12] += qp.offset[0] * transform[0] + qp.offset[1] * transform[4] + qp.offset[2] * transform[8];
@@ -1128,9 +1128,9 @@ size_t writeInstances(std::vector<BufferView>& views, std::string& json_accessor
 
 		if (settings.quantize && !settings.pos_float)
 		{
-			const float* transform = transforms[i].data;
+			const cgltf_float* transform = transforms[i].data;
 
-			float node_scale = qp.scale / float((1 << qp.bits) - 1) * (qp.normalized ? 65535.f : 1.f);
+			cgltf_float node_scale = qp.scale / cgltf_float((1 << qp.bits) - 1) * (qp.normalized ? 65535.f : 1.f);
 
 			// pos_offset has to be applied first, thus it results in an offset rotated by the instance matrix
 			position[i].f[0] += qp.offset[0] * transform[0] + qp.offset[1] * transform[4] + qp.offset[2] * transform[8];
@@ -1166,7 +1166,7 @@ void writeMeshNode(std::string& json, size_t mesh_offset, cgltf_node* node, cglt
 	}
 	if (qp)
 	{
-		float node_scale = qp->scale / float((1 << qp->bits) - 1) * (qp->normalized ? 65535.f : 1.f);
+		cgltf_float node_scale = qp->scale / cgltf_float((1 << qp->bits) - 1) * (qp->normalized ? 65535.f : 1.f);
 
 		append(json, ",\"translation\":[");
 		append(json, qp->offset[0]);
@@ -1413,8 +1413,8 @@ void writeAnimation(std::string& json, std::vector<BufferView>& views, std::stri
 
 	assert(int(needs_time) + int(needs_pose) + int(needs_range) <= 2);
 
-	float animation_period = 1.f / float(settings.anim_freq);
-	float animation_length = float(animation.frames - 1) * animation_period;
+	cgltf_float animation_period = 1.f / cgltf_float(settings.anim_freq);
+	cgltf_float animation_length = cgltf_float(animation.frames - 1) * animation_period;
 
 	size_t time_accr = needs_time ? writeAnimationTime(views, json_accessors, accr_offset, animation.start, animation.frames, animation_period, settings) : 0;
 	size_t pose_accr = needs_pose ? writeAnimationTime(views, json_accessors, accr_offset, animation.start, 1, 0.f, settings) : 0;
@@ -1547,7 +1547,7 @@ void writeLight(std::string& json, const cgltf_light& light)
 	append(json, "{\"type\":\"");
 	append(json, lightType(light.type));
 	append(json, "\"");
-	if (memcmp(light.color, white, 12) != 0)
+	if (memcmp(light.color, white, sizeof(light.color)) != 0)
 	{
 		comma(json);
 		append(json, "\"color\":[");

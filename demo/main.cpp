@@ -50,9 +50,9 @@ const size_t kCacheSize = 16;
 
 struct Vertex
 {
-	float px, py, pz;
-	float nx, ny, nz;
-	float tx, ty;
+	meshopt_float px, py, pz;
+	meshopt_float nx, ny, nz;
+	meshopt_float tx, ty;
 };
 
 struct Mesh
@@ -140,7 +140,7 @@ Mesh parseObj(const char* path, double& reindex)
 
 void dumpObj(const Mesh& mesh, bool recomputeNormals = false)
 {
-	std::vector<float> normals;
+	std::vector<meshopt_float> normals;
 
 	if (recomputeNormals)
 	{
@@ -154,9 +154,9 @@ void dumpObj(const Mesh& mesh, bool recomputeNormals = false)
 			const Vertex& vb = mesh.vertices[b];
 			const Vertex& vc = mesh.vertices[c];
 
-			float nx = (vb.py - va.py) * (vc.pz - va.pz) - (vb.pz - va.pz) * (vc.py - va.py);
-			float ny = (vb.pz - va.pz) * (vc.px - va.px) - (vb.px - va.px) * (vc.pz - va.pz);
-			float nz = (vb.px - va.px) * (vc.py - va.py) - (vb.py - va.py) * (vc.px - va.px);
+			meshopt_float nx = (vb.py - va.py) * (vc.pz - va.pz) - (vb.pz - va.pz) * (vc.py - va.py);
+			meshopt_float ny = (vb.pz - va.pz) * (vc.px - va.px) - (vb.px - va.px) * (vc.pz - va.pz);
+			meshopt_float nz = (vb.px - va.px) * (vc.py - va.py) - (vb.py - va.py) * (vc.px - va.px);
 
 			for (int k = 0; k < 3; ++k)
 			{
@@ -173,7 +173,7 @@ void dumpObj(const Mesh& mesh, bool recomputeNormals = false)
 	{
 		const Vertex& v = mesh.vertices[i];
 
-		float nx = v.nx, ny = v.ny, nz = v.nz;
+		meshopt_float nx = v.nx, ny = v.ny, nz = v.nz;
 
 		if (recomputeNormals)
 		{
@@ -181,8 +181,8 @@ void dumpObj(const Mesh& mesh, bool recomputeNormals = false)
 			ny = normals[i * 3 + 1];
 			nz = normals[i * 3 + 2];
 
-			float l = sqrtf(nx * nx + ny * ny + nz * nz);
-			float s = l == 0.f ? 0.f : 1.f / l;
+			meshopt_float l = mo_sqrt(nx * nx + ny * ny + nz * nz);
+			meshopt_float s = l == 0.f ? 0.f : 1.f / l;
 
 			nx *= s;
 			ny *= s;
@@ -343,7 +343,7 @@ void optOverdraw(Mesh& mesh)
 {
 	// use worst-case ACMR threshold so that overdraw optimizer can sort *all* triangles
 	// warning: this significantly deteriorates the vertex cache efficiency so it is not advised; look at optComplete for the recommended method
-	const float kThreshold = 3.f;
+	const meshopt_float kThreshold = 3.f;
 	meshopt_optimizeOverdraw(&mesh.indices[0], &mesh.indices[0], mesh.indices.size(), &mesh.vertices[0].px, mesh.vertices.size(), sizeof(Vertex), kThreshold);
 }
 
@@ -368,7 +368,7 @@ void optComplete(Mesh& mesh)
 	meshopt_optimizeVertexCache(&mesh.indices[0], &mesh.indices[0], mesh.indices.size(), mesh.vertices.size());
 
 	// reorder indices for overdraw, balancing overdraw and vertex cache efficiency
-	const float kThreshold = 1.01f; // allow up to 1% worse ACMR to get more reordering opportunities for overdraw
+	const meshopt_float kThreshold = 1.01f; // allow up to 1% worse ACMR to get more reordering opportunities for overdraw
 	meshopt_optimizeOverdraw(&mesh.indices[0], &mesh.indices[0], mesh.indices.size(), &mesh.vertices[0].px, mesh.vertices.size(), sizeof(Vertex), kThreshold);
 
 	// vertex fetch optimization should go last as it depends on the final index order
@@ -423,13 +423,13 @@ void packMesh(std::vector<PackedVertexOct>& pv, const std::vector<Vertex>& verti
 		pvi.py = meshopt_quantizeHalf(vi.py);
 		pvi.pz = meshopt_quantizeHalf(vi.pz);
 
-		float nsum = fabsf(vi.nx) + fabsf(vi.ny) + fabsf(vi.nz);
-		float nx = vi.nx / nsum;
-		float ny = vi.ny / nsum;
-		float nz = vi.nz;
+		meshopt_float nsum = fabsf(vi.nx) + fabsf(vi.ny) + fabsf(vi.nz);
+		meshopt_float nx = vi.nx / nsum;
+		meshopt_float ny = vi.ny / nsum;
+		meshopt_float nz = vi.nz;
 
-		float nu = nz >= 0 ? nx : (1 - fabsf(ny)) * (nx >= 0 ? 1 : -1);
-		float nv = nz >= 0 ? ny : (1 - fabsf(nx)) * (ny >= 0 ? 1 : -1);
+		meshopt_float nu = nz >= 0 ? nx : (1 - fabsf(ny)) * (nx >= 0 ? 1 : -1);
+		meshopt_float nv = nz >= 0 ? ny : (1 - fabsf(nx)) * (ny >= 0 ? 1 : -1);
 
 		pvi.nu = char(meshopt_quantizeSnorm(nu, 8));
 		pvi.nv = char(meshopt_quantizeSnorm(nv, 8));
@@ -439,15 +439,15 @@ void packMesh(std::vector<PackedVertexOct>& pv, const std::vector<Vertex>& verti
 	}
 }
 
-void simplify(const Mesh& mesh, float threshold = 0.2f)
+void simplify(const Mesh& mesh, meshopt_float threshold = 0.2f)
 {
 	Mesh lod;
 
 	double start = timestamp();
 
 	size_t target_index_count = size_t(mesh.indices.size() * threshold);
-	float target_error = 1e-2f;
-	float result_error = 0;
+	meshopt_float target_error = 1e-2f;
+	meshopt_float result_error = 0;
 
 	lod.indices.resize(mesh.indices.size()); // note: simplify needs space for index_count elements in the destination array, not target_index_count
 	lod.indices.resize(meshopt_simplify(&lod.indices[0], &mesh.indices[0], mesh.indices.size(), &mesh.vertices[0].px, mesh.vertices.size(), sizeof(Vertex), target_index_count, target_error, 0, &result_error));
@@ -464,18 +464,18 @@ void simplify(const Mesh& mesh, float threshold = 0.2f)
 	    (end - start) * 1000);
 }
 
-void simplifyAttr(const Mesh& mesh, float threshold = 0.2f)
+void simplifyAttr(const Mesh& mesh, meshopt_float threshold = 0.2f)
 {
 	Mesh lod;
 
 	double start = timestamp();
 
 	size_t target_index_count = size_t(mesh.indices.size() * threshold);
-	float target_error = 1e-2f;
-	float result_error = 0;
+	meshopt_float target_error = 1e-2f;
+	meshopt_float result_error = 0;
 
-	const float nrm_weight = 0.01f;
-	const float attr_weights[3] = {nrm_weight, nrm_weight, nrm_weight};
+	const meshopt_float nrm_weight = 0.01f;
+	const meshopt_float attr_weights[3] = {nrm_weight, nrm_weight, nrm_weight};
 
 	lod.indices.resize(mesh.indices.size()); // note: simplify needs space for index_count elements in the destination array, not target_index_count
 	lod.indices.resize(meshopt_simplifyWithAttributes(&lod.indices[0], &mesh.indices[0], mesh.indices.size(), &mesh.vertices[0].px, mesh.vertices.size(), sizeof(Vertex), &mesh.vertices[0].nx, sizeof(Vertex), attr_weights, 3, target_index_count, target_error, 0, &result_error));
@@ -492,15 +492,15 @@ void simplifyAttr(const Mesh& mesh, float threshold = 0.2f)
 	    (end - start) * 1000);
 }
 
-void simplifySloppy(const Mesh& mesh, float threshold = 0.2f)
+void simplifySloppy(const Mesh& mesh, meshopt_float threshold = 0.2f)
 {
 	Mesh lod;
 
 	double start = timestamp();
 
 	size_t target_index_count = size_t(mesh.indices.size() * threshold);
-	float target_error = 1e-1f;
-	float result_error = 0;
+	meshopt_float target_error = 1e-1f;
+	meshopt_float result_error = 0;
 
 	lod.indices.resize(mesh.indices.size()); // note: simplify needs space for index_count elements in the destination array, not target_index_count
 	lod.indices.resize(meshopt_simplifySloppy(&lod.indices[0], &mesh.indices[0], mesh.indices.size(), &mesh.vertices[0].px, mesh.vertices.size(), sizeof(Vertex), target_index_count, target_error, &result_error));
@@ -517,7 +517,7 @@ void simplifySloppy(const Mesh& mesh, float threshold = 0.2f)
 	    (end - start) * 1000);
 }
 
-void simplifyPoints(const Mesh& mesh, float threshold = 0.2f)
+void simplifyPoints(const Mesh& mesh, meshopt_float threshold = 0.2f)
 {
 	double start = timestamp();
 
@@ -549,9 +549,9 @@ void simplifyComplete(const Mesh& mesh)
 	{
 		std::vector<unsigned int>& lod = lods[i];
 
-		float threshold = powf(0.7f, float(i));
+		meshopt_float threshold = mo_pow(0.7f, meshopt_float(i));
 		size_t target_index_count = size_t(mesh.indices.size() * threshold) / 3 * 3;
-		float target_error = 1e-2f;
+		meshopt_float target_error = 1e-2f;
 
 		// we can simplify all the way from base level or from the last result
 		// simplifying from the base level sometimes produces better results, but simplifying from last level is faster
@@ -822,7 +822,7 @@ void shadow(const Mesh& mesh)
 	double start = timestamp();
 	// this index buffer can be used for position-only rendering using the same vertex data that the original index buffer uses
 	std::vector<unsigned int> shadow_indices(mesh.indices.size());
-	meshopt_generateShadowIndexBuffer(&shadow_indices[0], &mesh.indices[0], mesh.indices.size(), &mesh.vertices[0], mesh.vertices.size(), sizeof(float) * 3, sizeof(Vertex));
+	meshopt_generateShadowIndexBuffer(&shadow_indices[0], &mesh.indices[0], mesh.indices.size(), &mesh.vertices[0], mesh.vertices.size(), sizeof(meshopt_float) * 3, sizeof(Vertex));
 	double end = timestamp();
 
 	// while you can't optimize the vertex data after shadow IB was constructed, you can and should optimize the shadow IB for vertex cache
@@ -852,7 +852,7 @@ void meshlets(const Mesh& mesh, bool scan)
 {
 	const size_t max_vertices = 64;
 	const size_t max_triangles = 124; // NVidia-recommended 126, rounded down to a multiple of 4
-	const float cone_weight = 0.5f;   // note: should be set to 0 unless cone culling is used at runtime!
+	const meshopt_float cone_weight = 0.5f;   // note: should be set to 0 unless cone culling is used at runtime!
 
 	// note: input mesh is assumed to be optimized for vertex cache and vertex fetch
 	double start = timestamp();
@@ -897,7 +897,7 @@ void meshlets(const Mesh& mesh, bool scan)
 	    scan ? 'S' : ' ',
 	    int(meshlets.size()), avg_vertices, avg_triangles, int(not_full), (end - start) * 1000);
 
-	float camera[3] = {100, 100, 100};
+	meshopt_float camera[3] = {100, 100, 100};
 
 	size_t rejected = 0;
 	size_t rejected_s8 = 0;
@@ -906,7 +906,7 @@ void meshlets(const Mesh& mesh, bool scan)
 	size_t accepted = 0;
 	size_t accepted_s8 = 0;
 
-	std::vector<float> radii(meshlets.size());
+	std::vector<meshopt_float> radii(meshlets.size());
 
 	double startc = timestamp();
 	for (size_t i = 0; i < meshlets.size(); ++i)
@@ -922,16 +922,16 @@ void meshlets(const Mesh& mesh, bool scan)
 		accepted_s8 += (bounds.cone_cutoff_s8 >= 127);
 
 		// perspective projection: dot(normalize(cone_apex - camera_position), cone_axis) > cone_cutoff
-		float mview[3] = {bounds.cone_apex[0] - camera[0], bounds.cone_apex[1] - camera[1], bounds.cone_apex[2] - camera[2]};
-		float mviewlength = sqrtf(mview[0] * mview[0] + mview[1] * mview[1] + mview[2] * mview[2]);
+		meshopt_float mview[3] = {bounds.cone_apex[0] - camera[0], bounds.cone_apex[1] - camera[1], bounds.cone_apex[2] - camera[2]};
+		meshopt_float mviewlength = mo_sqrt(mview[0] * mview[0] + mview[1] * mview[1] + mview[2] * mview[2]);
 
 		rejected += mview[0] * bounds.cone_axis[0] + mview[1] * bounds.cone_axis[1] + mview[2] * bounds.cone_axis[2] >= bounds.cone_cutoff * mviewlength;
 		rejected_s8 += mview[0] * (bounds.cone_axis_s8[0] / 127.f) + mview[1] * (bounds.cone_axis_s8[1] / 127.f) + mview[2] * (bounds.cone_axis_s8[2] / 127.f) >= (bounds.cone_cutoff_s8 / 127.f) * mviewlength;
 
 		// alternative formulation for perspective projection that doesn't use apex (and uses cluster bounding sphere instead):
 		// dot(normalize(center - camera_position), cone_axis) > cone_cutoff + radius / length(center - camera_position)
-		float cview[3] = {bounds.center[0] - camera[0], bounds.center[1] - camera[1], bounds.center[2] - camera[2]};
-		float cviewlength = sqrtf(cview[0] * cview[0] + cview[1] * cview[1] + cview[2] * cview[2]);
+		meshopt_float cview[3] = {bounds.center[0] - camera[0], bounds.center[1] - camera[1], bounds.center[2] - camera[2]};
+		meshopt_float cviewlength = mo_sqrt(cview[0] * cview[0] + cview[1] * cview[1] + cview[2] * cview[2]);
 
 		rejected_alt += cview[0] * bounds.cone_axis[0] + cview[1] * bounds.cone_axis[1] + cview[2] * bounds.cone_axis[2] >= bounds.cone_cutoff * cviewlength + bounds.radius;
 		rejected_alt_s8 += cview[0] * (bounds.cone_axis_s8[0] / 127.f) + cview[1] * (bounds.cone_axis_s8[1] / 127.f) + cview[2] * (bounds.cone_axis_s8[2] / 127.f) >= (bounds.cone_cutoff_s8 / 127.f) * cviewlength + bounds.radius;
@@ -1092,9 +1092,9 @@ void processDeinterleaved(const char* path)
 	for (unsigned int i = 0; i < obj->face_count; ++i)
 		total_indices += 3 * (obj->face_vertices[i] - 2);
 
-	std::vector<float> unindexed_pos(total_indices * 3);
-	std::vector<float> unindexed_nrm(total_indices * 3);
-	std::vector<float> unindexed_uv(total_indices * 2);
+	std::vector<meshopt_float> unindexed_pos(total_indices * 3);
+	std::vector<meshopt_float> unindexed_nrm(total_indices * 3);
+	std::vector<meshopt_float> unindexed_uv(total_indices * 2);
 
 	size_t vertex_offset = 0;
 	size_t index_offset = 0;
@@ -1108,18 +1108,18 @@ void processDeinterleaved(const char* path)
 			// triangulate polygon on the fly; offset-3 is always the first polygon vertex
 			if (j >= 3)
 			{
-				memcpy(&unindexed_pos[(vertex_offset + 0) * 3], &unindexed_pos[(vertex_offset - 3) * 3], 3 * sizeof(float));
-				memcpy(&unindexed_nrm[(vertex_offset + 0) * 3], &unindexed_nrm[(vertex_offset - 3) * 3], 3 * sizeof(float));
-				memcpy(&unindexed_uv[(vertex_offset + 0) * 2], &unindexed_uv[(vertex_offset - 3) * 2], 2 * sizeof(float));
-				memcpy(&unindexed_pos[(vertex_offset + 1) * 3], &unindexed_pos[(vertex_offset - 1) * 3], 3 * sizeof(float));
-				memcpy(&unindexed_nrm[(vertex_offset + 1) * 3], &unindexed_nrm[(vertex_offset - 1) * 3], 3 * sizeof(float));
-				memcpy(&unindexed_uv[(vertex_offset + 1) * 2], &unindexed_uv[(vertex_offset - 1) * 2], 2 * sizeof(float));
+				memcpy(&unindexed_pos[(vertex_offset + 0) * 3], &unindexed_pos[(vertex_offset - 3) * 3], 3 * sizeof(meshopt_float));
+				memcpy(&unindexed_nrm[(vertex_offset + 0) * 3], &unindexed_nrm[(vertex_offset - 3) * 3], 3 * sizeof(meshopt_float));
+				memcpy(&unindexed_uv[(vertex_offset + 0) * 2], &unindexed_uv[(vertex_offset - 3) * 2], 2 * sizeof(meshopt_float));
+				memcpy(&unindexed_pos[(vertex_offset + 1) * 3], &unindexed_pos[(vertex_offset - 1) * 3], 3 * sizeof(meshopt_float));
+				memcpy(&unindexed_nrm[(vertex_offset + 1) * 3], &unindexed_nrm[(vertex_offset - 1) * 3], 3 * sizeof(meshopt_float));
+				memcpy(&unindexed_uv[(vertex_offset + 1) * 2], &unindexed_uv[(vertex_offset - 1) * 2], 2 * sizeof(meshopt_float));
 				vertex_offset += 2;
 			}
 
-			memcpy(&unindexed_pos[vertex_offset * 3], &obj->positions[gi.p * 3], 3 * sizeof(float));
-			memcpy(&unindexed_nrm[vertex_offset * 3], &obj->normals[gi.n * 3], 3 * sizeof(float));
-			memcpy(&unindexed_uv[vertex_offset * 2], &obj->texcoords[gi.t * 2], 2 * sizeof(float));
+			memcpy(&unindexed_pos[vertex_offset * 3], &obj->positions[gi.p * 3], 3 * sizeof(meshopt_float));
+			memcpy(&unindexed_nrm[vertex_offset * 3], &obj->normals[gi.n * 3], 3 * sizeof(meshopt_float));
+			memcpy(&unindexed_uv[vertex_offset * 2], &obj->texcoords[gi.t * 2], 2 * sizeof(meshopt_float));
 			vertex_offset++;
 		}
 
@@ -1131,9 +1131,9 @@ void processDeinterleaved(const char* path)
 	double start = timestamp();
 
 	meshopt_Stream streams[] = {
-	    {&unindexed_pos[0], sizeof(float) * 3, sizeof(float) * 3},
-	    {&unindexed_nrm[0], sizeof(float) * 3, sizeof(float) * 3},
-	    {&unindexed_uv[0], sizeof(float) * 2, sizeof(float) * 2},
+	    {&unindexed_pos[0], sizeof(meshopt_float) * 3, sizeof(meshopt_float) * 3},
+	    {&unindexed_nrm[0], sizeof(meshopt_float) * 3, sizeof(meshopt_float) * 3},
+	    {&unindexed_uv[0], sizeof(meshopt_float) * 2, sizeof(meshopt_float) * 2},
 	};
 
 	std::vector<unsigned int> remap(total_indices);
@@ -1143,28 +1143,28 @@ void processDeinterleaved(const char* path)
 	std::vector<unsigned int> indices(total_indices);
 	meshopt_remapIndexBuffer(&indices[0], NULL, total_indices, &remap[0]);
 
-	std::vector<float> pos(total_vertices * 3);
-	meshopt_remapVertexBuffer(&pos[0], &unindexed_pos[0], total_indices, sizeof(float) * 3, &remap[0]);
+	std::vector<meshopt_float> pos(total_vertices * 3);
+	meshopt_remapVertexBuffer(&pos[0], &unindexed_pos[0], total_indices, sizeof(meshopt_float) * 3, &remap[0]);
 
-	std::vector<float> nrm(total_vertices * 3);
-	meshopt_remapVertexBuffer(&nrm[0], &unindexed_nrm[0], total_indices, sizeof(float) * 3, &remap[0]);
+	std::vector<meshopt_float> nrm(total_vertices * 3);
+	meshopt_remapVertexBuffer(&nrm[0], &unindexed_nrm[0], total_indices, sizeof(meshopt_float) * 3, &remap[0]);
 
-	std::vector<float> uv(total_vertices * 2);
-	meshopt_remapVertexBuffer(&uv[0], &unindexed_uv[0], total_indices, sizeof(float) * 2, &remap[0]);
+	std::vector<meshopt_float> uv(total_vertices * 2);
+	meshopt_remapVertexBuffer(&uv[0], &unindexed_uv[0], total_indices, sizeof(meshopt_float) * 2, &remap[0]);
 
 	double reindex = timestamp();
 
 	meshopt_optimizeVertexCache(&indices[0], &indices[0], total_indices, total_vertices);
 
 	meshopt_optimizeVertexFetchRemap(&remap[0], &indices[0], total_indices, total_vertices);
-	meshopt_remapVertexBuffer(&pos[0], &pos[0], total_vertices, sizeof(float) * 3, &remap[0]);
-	meshopt_remapVertexBuffer(&nrm[0], &nrm[0], total_vertices, sizeof(float) * 3, &remap[0]);
-	meshopt_remapVertexBuffer(&uv[0], &uv[0], total_vertices, sizeof(float) * 2, &remap[0]);
+	meshopt_remapVertexBuffer(&pos[0], &pos[0], total_vertices, sizeof(meshopt_float) * 3, &remap[0]);
+	meshopt_remapVertexBuffer(&nrm[0], &nrm[0], total_vertices, sizeof(meshopt_float) * 3, &remap[0]);
+	meshopt_remapVertexBuffer(&uv[0], &uv[0], total_vertices, sizeof(meshopt_float) * 2, &remap[0]);
 
 	double optimize = timestamp();
 
 	// note: since shadow index buffer is computed based on regular vertex/index buffer, the stream points at the indexed data - not unindexed_pos
-	meshopt_Stream shadow_stream = {&pos[0], sizeof(float) * 3, sizeof(float) * 3};
+	meshopt_Stream shadow_stream = {&pos[0], sizeof(meshopt_float) * 3, sizeof(meshopt_float) * 3};
 
 	std::vector<unsigned int> shadow_indices(total_indices);
 	meshopt_generateShadowIndexBufferMulti(&shadow_indices[0], &indices[0], total_indices, total_vertices, &shadow_stream, 1);

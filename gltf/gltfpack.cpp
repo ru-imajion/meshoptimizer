@@ -1296,7 +1296,7 @@ int main(int argc, char** argv)
 		}
 		else if (strcmp(arg, "-si") == 0 && i + 1 < argc && isdigit(argv[i + 1][0]))
 		{
-			settings.simplify_threshold = clamp(float(atof(argv[++i])), 0.f, 1.f);
+			settings.simplify_threshold = clamp(cgltf_float(atof(argv[++i])), cgltf_float(0.f), cgltf_float(1.f));
 		}
 		else if (strcmp(arg, "-sa") == 0)
 		{
@@ -1309,7 +1309,7 @@ int main(int argc, char** argv)
 #ifndef NDEBUG
 		else if (strcmp(arg, "-sd") == 0 && i + 1 < argc && isdigit(argv[i + 1][0]))
 		{
-			settings.simplify_debug = clamp(float(atof(argv[++i])), 0.f, 1.f);
+			settings.simplify_debug = clamp(cgltf_float(atof(argv[++i])), cgltf_float(0.f), cgltf_float(1.f));
 		}
 		else if (strcmp(arg, "-md") == 0 && i + 1 < argc && isdigit(argv[i + 1][0]))
 		{
@@ -1357,7 +1357,7 @@ int main(int argc, char** argv)
 		}
 		else if (strcmp(arg, "-ts") == 0 && i + 1 < argc && isdigit(argv[i + 1][0]))
 		{
-			settings.texture_scale = clamp(float(atof(argv[++i])), 0.f, 1.f);
+			settings.texture_scale = clamp(cgltf_float(atof(argv[++i])), cgltf_float(0.f), cgltf_float(1.f));
 		}
 		else if (strcmp(arg, "-tl") == 0 && i + 1 < argc && isdigit(argv[i + 1][0]))
 		{

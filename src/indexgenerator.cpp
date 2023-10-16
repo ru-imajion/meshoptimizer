@@ -160,9 +160,9 @@ static T* hashLookup(T* table, size_t buckets, const Hash& hash, const T& key, c
 	return 0;
 }
 
-static void buildPositionRemap(unsigned int* remap, const float* vertex_positions, size_t vertex_count, size_t vertex_positions_stride, meshopt_Allocator& allocator)
+static void buildPositionRemap(unsigned int* remap, const meshopt_float* vertex_positions, size_t vertex_count, size_t vertex_positions_stride, meshopt_Allocator& allocator)
 {
-	VertexHasher vertex_hasher = {reinterpret_cast<const unsigned char*>(vertex_positions), 3 * sizeof(float), vertex_positions_stride};
+	VertexHasher vertex_hasher = {reinterpret_cast<const unsigned char*>(vertex_positions), 3 * sizeof(meshopt_float), vertex_positions_stride};
 
 	size_t vertex_table_size = hashBuckets(vertex_count);
 	unsigned int* vertex_table = allocator.allocate<unsigned int>(vertex_table_size);
@@ -333,6 +333,9 @@ void meshopt_remapVertexBuffer(void* destination, const void* vertices, size_t v
 	case 16:
 		return remapVertices<16>(destination, vertices, vertex_count, vertex_size, remap);
 
+	case 32:
+		return remapVertices<32>(destination, vertices, vertex_count, vertex_size, remap);
+
 	default:
 		return remapVertices<0>(destination, vertices, vertex_count, vertex_size, remap);
 	}
@@ -434,13 +437,13 @@ void meshopt_generateShadowIndexBufferMulti(unsigned int* destination, const uns
 	}
 }
 
-void meshopt_generateAdjacencyIndexBuffer(unsigned int* destination, const unsigned int* indices, size_t index_count, const float* vertex_positions, size_t vertex_count, size_t vertex_positions_stride)
+void meshopt_generateAdjacencyIndexBuffer(unsigned int* destination, const unsigned int* indices, size_t index_count, const meshopt_float* vertex_positions, size_t vertex_count, size_t vertex_positions_stride)
 {
 	using namespace meshopt;
 
 	assert(index_count % 3 == 0);
 	assert(vertex_positions_stride >= 12 && vertex_positions_stride <= 256);
-	assert(vertex_positions_stride % sizeof(float) == 0);
+	assert(vertex_positions_stride % sizeof(meshopt_float) == 0);
 
 	meshopt_Allocator allocator;
 
@@ -505,13 +508,13 @@ void meshopt_generateAdjacencyIndexBuffer(unsigned int* destination, const unsig
 	}
 }
 
-void meshopt_generateTessellationIndexBuffer(unsigned int* destination, const unsigned int* indices, size_t index_count, const float* vertex_positions, size_t vertex_count, size_t vertex_positions_stride)
+void meshopt_generateTessellationIndexBuffer(unsigned int* destination, const unsigned int* indices, size_t index_count, const meshopt_float* vertex_positions, size_t vertex_count, size_t vertex_positions_stride)
 {
 	using namespace meshopt;
 
 	assert(index_count % 3 == 0);
 	assert(vertex_positions_stride >= 12 && vertex_positions_stride <= 256);
-	assert(vertex_positions_stride % sizeof(float) == 0);
+	assert(vertex_positions_stride % sizeof(meshopt_float) == 0);
 
 	meshopt_Allocator allocator;
 

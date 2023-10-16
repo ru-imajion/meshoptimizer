@@ -52,7 +52,7 @@ meshopt_VertexFetchStatistics meshopt_analyzeVertexFetch(const unsigned int* ind
 	for (size_t i = 0; i < vertex_count; ++i)
 		unique_vertex_count += vertex_visited[i];
 
-	result.overfetch = unique_vertex_count == 0 ? 0 : float(result.bytes_fetched) / float(unique_vertex_count * vertex_size);
+	result.overfetch = unique_vertex_count == 0 ? 0 : meshopt_float(result.bytes_fetched) / meshopt_float(unique_vertex_count * vertex_size);
 
 	return result;
 }
